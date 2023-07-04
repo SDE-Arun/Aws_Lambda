@@ -1,18 +1,34 @@
 const { DynamoDBClient, QueryCommand } = require("@aws-sdk/client-dynamodb");
+const dotenv = require("dotenv");
+dotenv.config();
 
-async function getTopicByDate() {
-  const client = new DynamoDBClient({ region: "ap-south-1" });
+const tableName = process.env.USERS_TABLE_NAME;
+const indexName = process.env.USERS_INDEX_NAME;
+const awsRegion = process.env.AWS_REGION;
+
+async function getTopicByDate(dateBegin, dateEnd) {
+  const client = new DynamoDBClient({ region: awsRegion });
   try {
+    const d = new Date();
+    if (
+      dateBegin === undefined ||
+      dateEnd === undefined ||
+      dateEnd > d.toISOString()
+    ) {
+      throw "Invalid Credentials";
+    }
     const input = {
-      TableName: "Conversation-t4cbmefepvafblwu43bufhgtiy-prd",
-      IndexName: "byStatusAndCreatedAt",
-      KeyConditionExpression: "#st = :statusValue and createdAt > :rkey",
+      TableName: tableName,
+      IndexName: indexName,
+      KeyConditionExpression:
+        "#st = :statusValue and createdAt BETWEEN :rkey1 and :rkey2",
       ExpressionAttributeNames: {
         "#st": "status",
       },
       ExpressionAttributeValues: {
         ":statusValue": { S: "CLOSED" },
-        ":rkey": { S: "2022-08-05T05:38:45.354Z" },
+        ":rkey1": { S: dateBegin },
+        ":rkey2": { S: dateEnd },
       },
     };
     const response = await client.send(new QueryCommand(input));
@@ -23,35 +39,21 @@ async function getTopicByDate() {
       }
     });
 
-  //   const counts = {};
+    const counts = new Map();
 
-  //   for (let i = 0; i < stringCounts.length; i++) {
-  //     const element = stringCounts[i];
+    for (let i = 0; i < stringCounts.length; i++) {
+      const element = stringCounts[i];
 
-  //     if (counts[element]) {
-  //       counts[element] += 1;
-  //     } else {
-  //       counts[element] = 1;
-  //     }
-  //   }
-  //   console.log(counts);
-
-  const counts = new Map();
-
-  for (let i = 0; i < stringCounts.length; i++) {
-    const element = stringCounts[i];
-
-    if (counts.has(element)) {
-      counts.set(element, counts.get(element) + 1);
-    } else {
-      counts.set(element, 1);
+      if (counts.has(element)) {
+        counts.set(element, counts.get(element) + 1);
+      } else {
+        counts.set(element, 1);
+      }
     }
-  }
-  console.log(counts);
+    console.log(counts);
+    // counts.clear();
   } catch (err) {
     console.error(err);
   }
-
-
 }
-getTopicByDate();
+getTopicByDate("2022-10-05T04:38:45.354Z", "2023-07-04T05:08:45.354Z");
